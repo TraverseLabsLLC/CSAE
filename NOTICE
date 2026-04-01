@@ -1,0 +1,37 @@
+CSAE: Context State Attestation Envelope
+Copyright 2026 Traverse Labs LLC
+
+This product includes software developed by Traverse Labs LLC
+(https://traverselabs.ai).
+
+PATENT NOTICE
+
+Patent Grant (Apache 2.0 Section 3):
+
+This library implements the CSAE attestation primitive (Layer 0) and
+typed provenance chains (Layer 1) for verifiable context transfer
+between AI agents. In accordance with Section 3 of the Apache License
+2.0, Traverse Labs LLC grants you a perpetual, worldwide, non-exclusive,
+royalty-free patent license to make, use, sell, and distribute this
+software as provided, limited to the patent claims necessarily infringed
+by this code as distributed.
+
+Commercial Features (Not Included, Not Licensed):
+
+The following features are NOT included in this library and are NOT
+covered by the Apache 2.0 patent grant:
+
+  - Full envelope construction with six-component integrity sealing
+  - Transformation propagation history tracking across agent chains
+  - Per-item authority controls with attenuated delegation chains
+  - Degradation policies with provenance retention and seal
+    recalculation under token budget constraints
+  - Cross-vendor provenance traceability with organizational
+    boundary verification
+
+Traverse Labs LLC holds patent applications covering aspects of these
+features. Implementation of these features, whether by extending this
+library or by independent development, may require a commercial license
+from Traverse Labs LLC.
+
+Commercial licensing: brett@traverselabs.ai
