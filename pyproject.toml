@@ -24,14 +24,14 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Security :: Cryptography",
     "Topic :: Software Development :: Libraries :: Python Modules",
-]
+
 dependencies = [
     "cryptography>=41.0",
     "pydantic>=2.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "pytest-cov"
+dev = ["pytest>=7.0", "pytest-cov"]
 
 [project.urls]
 Homepage = "https://github.com/traverselabsllc/csae"
