@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "csae"
-version = "0.1.0"
-description = "Verifiable context transfer between AI agents: signed, hash-chained attestations with provenance tracking"
+version = "0.2.0"
+description = "Verifiable context transfer between AI agents: signed, hash-chained attestations with provenance tracking and audit logging"
 readme = "README.md"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
 requires-python = ">=3.9"
 authors = [
     {name = "Traverse Labs LLC", email = "brett@traverselabs.ai"}
@@ -16,7 +16,6 @@ keywords = ["ai", "agents", "provenance", "attestation", "integrity", "mcp", "a2
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -24,6 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Security :: Cryptography",
     "Topic :: Software Development :: Libraries :: Python Modules",
+]
 
 dependencies = [
     "cryptography>=41.0",
@@ -34,9 +34,9 @@ dependencies = [
 dev = ["pytest>=7.0", "pytest-cov"]
 
 [project.urls]
-Homepage = "https://github.com/traverselabsllc/csae"
-Documentation = "https://github.com/traverselabsllc/csae#readme"
-Issues = "https://github.com/traverselabsllc/csae/issues"
+Homepage = "https://github.com/TraverseLabsLLC/CSAE"
+Documentation = "https://github.com/TraverseLabsLLC/CSAE#readme"
+Issues = "https://github.com/TraverseLabsLLC/CSAE/issues"
 Commercial = "https://traverselabs.ai"
 
 [tool.setuptools.packages.find]

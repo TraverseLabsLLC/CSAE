@@ -2,7 +2,7 @@
 
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 from .types import SourceType, TransformationType, AgentIdentity
@@ -17,7 +17,7 @@ class ProvenanceNode(BaseModel):
     source_human_id: Optional[str] = None
     transformation: TransformationType = TransformationType.VERBATIM
     transformation_parameters: Dict = Field(default_factory=dict)
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     parent_node_ids: List[str] = Field(default_factory=list)
     content_at_node: Optional[str] = None
     node_hash: str = ""

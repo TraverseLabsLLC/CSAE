@@ -8,7 +8,7 @@ Any agent can produce it. Any agent can verify it. Transport-agnostic.
 
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 import json
 
@@ -26,6 +26,8 @@ class Attestation(BaseModel):
 
     This is the simplest possible unit of verifiable context transfer.
     """
+    model_config = {"arbitrary_types_allowed": True}
+
     attestation_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     content: Dict[str, Any]
     content_hash: str = ""
@@ -34,10 +36,7 @@ class Attestation(BaseModel):
     chain_hash: str = ""
     signer_agent: AgentIdentity
     signature: str = ""
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-
-    class Config:
-        arbitrary_types_allowed = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     def _signable_payload(self) -> str:
         """The canonical string that gets signed."""

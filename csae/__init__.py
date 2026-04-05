@@ -2,10 +2,15 @@
 
 Verifiable context transfer between AI agents across trust boundaries.
 
-This open-source library provides the Layer 0 attestation primitive:
-signed, hash-chained, verifiable context transfer with provenance tracking.
-
     from csae import create_attestation, verify_attestation, generate_keypair
+
+MCP middleware (drop-in attestation for MCP tool calls):
+
+    from csae.middleware import MCPAttestor
+
+Audit logging (tamper-evident log with regulatory context):
+
+    from csae.audit import AuditLog, Regulation
 
 Advanced features (full envelope with six-component integrity sealing,
 transformation propagation history, authority attenuation, and degradation
@@ -13,7 +18,7 @@ policies) are available under commercial license from Traverse Labs LLC.
 See https://traverselabs.ai for details.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # Crypto
 from .crypto import generate_keypair, export_public_key, import_public_key

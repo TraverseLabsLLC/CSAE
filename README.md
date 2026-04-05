@@ -2,134 +2,172 @@
 
 Verifiable context transfer between AI agents across trust boundaries.
 
-When AI agents from different vendors collaborate in regulated environments, there is no standard way to verify where context came from, whether it was altered, or what the recipient is allowed to do with it. CSAE provides a protocol for tamper-evident, provenance-tracked context transfer.
-
-This library implements the **Layer 0 attestation primitive**: the irreducible core of verifiable agent context transfer. Three fields: content, provenance hash, cryptographic signature. Any agent can produce it. Any agent can verify it. Transport-agnostic.
-
-## Why Now
-
-These are enacted laws with enforcement dates, not proposed legislation:
-
-| Regulation | Requirement | CSAE Component | Effective |
-|---|---|---|---|
-| EU AI Act Art. 12 | Tamper-evident logging | Integrity Seal | **Aug 2026** |
-| EU AI Act Art. 25 | Value chain traceability | Provenance Chains | **Aug 2026** |
-| HIPAA | Individual attribution in AI workflows | Authority + Provenance | **May 2026** |
-| FINRA 17a-3/4 | Full chain reconstruction | All components | Now |
-| CA SB-942 | Machine-readable provenance | Provenance Chains | Jan 2026 |
-| Colorado AI Act | Impact assessments | All components | Jun 2026 |
-
-CSAE was submitted as a candidate reference implementation to the [NIST NCCoE concept paper on AI agent identity and authorization](https://www.nccoe.nist.gov/ai/agentic-ai) (February 2026). The NIST AI Agent Standards Initiative launched the same month; CSAE addresses the data flow tracking gap that existing standards do not cover.
+When AI agents from different vendors collaborate in regulated environments, there is no standard way to verify where context came from, whether it was altered, or what the recipient is allowed to do with it. CSAE provides cryptographically signed, hash-chained attestations with provenance tracking and tamper-evident audit logging.
 
 ## Install
 
 ```bash
-pip install git+https://github.com/traverselabsllc/csae.git
+pip install csae
 ```
 
-PyPI package coming soon. Track progress in [#1](https://github.com/traverselabsllc/csae/issues).
+Requires Python 3.9+.
 
-## Quick Start
+## Quick start
+
+```python
+from csae.middleware import MCPAttestor
+
+# Two agents, different vendors
+agent_a = MCPAttestor(agent_id="triage-001", vendor="anthropic")
+agent_b = MCPAttestor(agent_id="diagnostics-001", vendor="openai")
+
+# Agent A attests its output
+step1 = agent_a.attest("triage", {"observation": "Chest pain", "severity": "high"})
+
+# Agent B verifies, then chains its own attestation
+assert MCPAttestor.verify(step1, agent_a.public_key_pem)
+step2 = agent_b.attest("diagnose", {"assessment": "Possible ACS"}, previous=step1, auto_chain=False)
+
+# Full chain is cryptographically linked
+assert step2.attestation.previous_attestation_hash == step1.chain_hash
+
+# Tampering is detectable
+step1.attestation.content["severity"] = "low"
+assert not MCPAttestor.verify(step1, agent_a.public_key_pem)
+```
+
+## MCP middleware
+
+Drop-in attestation for any MCP server. Wrap tool responses, verify incoming context, chain across multi-step workflows.
+
+```python
+from csae.middleware import MCPAttestor
+
+server = MCPAttestor(
+    agent_id="mcp-retrieval-001",
+    agent_name="Data Retrieval MCP Server",
+    vendor="your-org",
+)
+
+# After your MCP tool produces a result:
+attested = server.attest("get_patient_record", raw_result)
+
+# Downstream agent verifies:
+MCPAttestor.verify(attested, server.public_key_pem)
+
+# Auto-chains across sequential tool calls:
+step1 = server.attest("fetch_labs", labs)
+step2 = server.attest("analyze_labs", analysis)  # automatically linked to step1
+
+# Verify an entire chain:
+MCPAttestor.verify_chain([step1, step2], server.public_key_pem)
+
+# Serialize for wire transmission:
+wire_payload = attested.to_dict()  # or .to_json()
+```
+
+## Audit logging
+
+Tamper-evident audit log with regulatory context markers. This is what you hand to an auditor.
+
+```python
+from csae.audit import AuditLog, Regulation
+
+audit = AuditLog("./audit")
+
+# Record with regulatory context
+audit.record(attested, regulations=[Regulation.HIPAA, Regulation.EU_AI_ACT_ART12])
+
+# Query by regulation, tool, agent, or time range
+hipaa_entries = audit.query(regulation=Regulation.HIPAA)
+recent = audit.query(after="2026-04-01T00:00:00Z")
+
+# Verify no entries were modified or removed
+assert audit.verify_integrity()
+
+# Export for auditor review
+audit.export_json("audit_export.json")
+```
+
+The audit log is hash-chained: modifying, deleting, or reordering any entry breaks the chain and is detectable via `verify_integrity()`.
+
+## Why now
+
+These are enacted laws with enforcement dates, not proposed legislation:
+
+| Regulation | Requirement | CSAE component | Effective |
+|---|---|---|---|
+| EU AI Act Art. 12 | Tamper-evident logging | Integrity seal, audit log | **Aug 2026** |
+| EU AI Act Art. 25 | Value chain traceability | Provenance chains | **Aug 2026** |
+| HIPAA | Individual attribution in AI workflows | Authority + provenance | **May 2026** |
+| FINRA 17a-3/4 | Full chain reconstruction | All components | Now |
+| CA SB-942 | Machine-readable provenance | Provenance chains | Jan 2026 |
+| Colorado AI Act | Impact assessments | All components | Jun 2026 |
+
+CSAE was submitted as a candidate reference implementation to the [NIST NCCoE concept paper on AI agent identity and authorization](https://www.nccoe.nist.gov/ai/agentic-ai) (March 2026).
+
+## How it works
+
+Agent A processes content, computes a SHA-256 hash, and signs it with an ECDSA P-256 private key. The signed attestation travels to Agent B over any transport (MCP, A2A, HTTP, message queue). Agent B verifies the signature, confirming the content is unmodified, then creates its own attestation chained to Agent A's via the chain hash. Any auditor can verify the full chain using only the attestations and public keys, with no access to vendor internals required.
+
+## Architecture
+
+**Layer 0: Attestation primitive** (this library, open source). Content + provenance hash + cryptographic signature. The irreducible core.
+
+**Layer 1: Typed provenance chains** (this library, open source). Full DAG with source types, transformation types, and per-node content hashes.
+
+**Layer 2: Transformation metadata and authority controls.** Per-item permissions with attenuation across trust boundaries. Commercial SDK.
+
+**Layer 3: Full CSAE envelope.** Six coupled components with integrity seal, confidence propagation tracking, degradation policies, and regulatory compliance features. Commercial SDK.
+
+## Key management
+
+Keys are auto-generated by default. For persistence across restarts:
+
+```python
+# Save
+pem = server.private_key_pem
+
+# Restore
+server = MCPAttestor(agent_id="mcp-001", vendor="org", private_key_pem=pem)
+```
+
+## Low-level API
+
+For direct control without the middleware layer:
 
 ```python
 from csae import create_attestation, verify_attestation, generate_keypair, AgentIdentity
 
 private_key, public_key = generate_keypair()
-
-agent = AgentIdentity(
-    agent_id="triage-001",
-    agent_name="Triage Agent",
-    vendor="anthropic",
-    model_id="claude-sonnet-4-20250514",
-)
+agent = AgentIdentity(agent_id="agent-001", vendor="your-org")
 
 attestation = create_attestation(
-    content={"observation": "Patient reports chest pain", "severity": "high"},
+    content={"observation": "Chest pain", "severity": "high"},
     provenance_hash="sha256:abc123",
     signer_agent=agent,
     private_key=private_key,
 )
 
-assert verify_attestation(attestation, public_key) is True
-
-# Tampering is detectable
-attestation.content["severity"] = "low"
-assert verify_attestation(attestation, public_key) is False
+assert verify_attestation(attestation, public_key)
 ```
 
-## MCP Integration
+## Examples
 
-CSAE is transport-agnostic and works alongside MCP. Wrap any MCP tool response with a CSAE attestation before passing context to the next agent:
+See the [`examples/`](examples/) directory:
 
-```python
-from csae import create_attestation, AgentIdentity, generate_keypair, ProvenanceChain, SourceType
+- [`mcp_middleware.py`](examples/mcp_middleware.py) -- full two-agent MCP workflow with audit logging
+- [`two_agent_chain.py`](examples/two_agent_chain.py) -- minimal cross-vendor chain verification
+- [`audit_log.py`](examples/audit_log.py) -- tamper-evident audit logging with regulatory markers
 
-private_key, public_key = generate_keypair()
-mcp_agent = AgentIdentity(agent_id="mcp-server-001", agent_name="Data Retrieval MCP Server", vendor="your-org")
+## Advanced features
 
-def attest_mcp_response(tool_name: str, tool_result: dict) -> dict:
-    chain = ProvenanceChain()
-    chain.add_root(source_type=SourceType.EXTERNAL_API, content=str(tool_result))
-    attestation = create_attestation(
-        content={"tool": tool_name, "result": tool_result},
-        provenance_hash=chain.chain_hash,
-        signer_agent=mcp_agent,
-        private_key=private_key,
-    )
-    return {"result": tool_result, "csae_attestation": attestation.to_dict(), "csae_chain_hash": attestation.chain_hash}
-```
+For regulated deployments requiring full envelope integrity sealing, confidence propagation tracking, authority attenuation, and degradation under token constraints, Traverse Labs offers a commercial SDK. See [traverselabs.ai](https://traverselabs.ai) for details.
 
-See [`examples/mcp_middleware.py`](examples/mcp_middleware.py) for a full working example with two-agent chain verification and tamper detection.
+## License
 
-## Chain Attestations Across Agents
+Apache 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
-```python
-att_a = create_attestation(content={"data": "original"}, provenance_hash="root", signer_agent=agent_a, private_key=key_a)
-att_b = create_attestation(content={"data": "derived"}, provenance_hash="derived", signer_agent=agent_b, private_key=key_b, previous_attestation_hash=att_a.chain_hash)
+## About
 
-assert att_b.previous_attestation_hash == att_a.chain_hash
-assert verify_attestation(att_a, pub_key_a) is True
-assert verify_attestation(att_b, pub_key_b) is True
-```
-
-## Provenance Chains
-
-```python
-from csae import ProvenanceChain, SourceType, TransformationType
-
-chain = ProvenanceChain()
-root = chain.add_root(source_type=SourceType.HUMAN_UTTERANCE, content="Patient reports chest pain", source_human_id="patient-001")
-summary = chain.add_transformation(parent_ids=[root.node_id], transformation=TransformationType.SUMMARIZATION, content="Acute chest pain presentation", source_agent=agent_a)
-att = create_attestation(content={"summary": "Acute chest pain presentation"}, provenance_hash=chain.chain_hash, signer_agent=agent_a, private_key=private_key)
-```
-
-## How It Works
-
-1. **Agent A** processes content and computes a SHA-256 hash of the output.
-2. 2. **Agent A** signs the hash (plus a chain link to any prior attestation) with its ECDSA P-256 private key.
-   3. 3. **Agent A** transmits the signed attestation to Agent B over any transport: MCP, A2A, HTTP, etc.
-      4. 4. **Agent B** verifies the signature. If valid, the content is guaranteed unmodified.
-         5. 5. **Agent B** creates its own attestation chained to Agent A's.
-            6. 6. **Any auditor** can verify the full chain using only attestations and public keys -- no access to vendor internals required.
-              
-               7. ## Architecture
-              
-               8. **Layer 0: Attestation Primitive** (this library). Content + provenance hash + cryptographic signature. The irreducible core.
-              
-               9. **Layer 1: Typed Provenance Chains** (this library). Full DAG with source types, transformation types, and per-node content hashes.
-              
-               10. **Layer 2: Transformation Metadata and Authority Controls.** Available in the commercial SDK.
-              
-               11. **Layer 3: Full CSAE Envelope.** Six coupled components with integrity seal, degradation policies, and regulatory compliance features. Available in the commercial SDK.
-              
-               12. ## Advanced Features
-              
-               13. For regulated deployments requiring full envelope integrity sealing, transformation propagation tracking, authority attenuation, and degradation under token constraints, Traverse Labs offers a commercial SDK. Contact brett@traverselabs.ai for details.
-              
-               14. ## License
-              
-               15. Apache 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
-              
-               16. ## About
-              
-               17. Built by [Traverse Labs LLC](https://traverselabs.ai). Questions and feedback: brett@traverselabs.ai
+Built by [Traverse Labs LLC](https://traverselabs.ai).
